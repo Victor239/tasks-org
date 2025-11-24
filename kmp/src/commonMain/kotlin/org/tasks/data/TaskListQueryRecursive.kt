@@ -39,10 +39,16 @@ internal object TaskListQueryRecursive {
             else -> groupPreference
         }
         
+        // Check if the filter is for Google Tasks
+        val isGoogleTasksFilter = when (filter) {
+            is CaldavFilter -> filter.isGoogleTasks
+            is SubtaskFilter -> filter.isGoogleTasks
+            else -> false
+        }
+        
         val sortMode = when {
             !isManualSortableFilter -> preferences.sortMode
-            (filter is CaldavFilter && filter.isGoogleTasks) || 
-                (filter is SubtaskFilter && filter.isGoogleTasks) -> SortHelper.SORT_GTASKS
+            isGoogleTasksFilter -> SortHelper.SORT_GTASKS
             else -> SortHelper.SORT_CALDAV
         }
         val subtaskPreference = preferences.subtaskMode
