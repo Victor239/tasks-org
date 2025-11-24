@@ -10,6 +10,8 @@ import org.tasks.data.sql.QueryTemplate
 @CommonParcelize
 data class SubtaskFilter(
     private val parent: Long,
+    val calendarUuid: String? = null,
+    val isGoogleTasks: Boolean = false,
 ) : Filter() {
     @CommonIgnoredOnParcel
     override val title: String = "subtasks"
@@ -26,6 +28,8 @@ data class SubtaskFilter(
             .toString()
 
     override fun disableHeaders() = true
+    
+    override fun supportsManualSort(): Boolean = calendarUuid != null
 
     override fun areItemsTheSame(other: FilterListItem): Boolean =
         other is SubtaskFilter && parent == other.parent

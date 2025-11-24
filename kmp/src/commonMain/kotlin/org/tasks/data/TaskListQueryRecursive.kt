@@ -11,6 +11,7 @@ import org.tasks.data.sql.Join
 import org.tasks.data.sql.QueryTemplate
 import org.tasks.filters.CaldavFilter
 import org.tasks.filters.Filter
+import org.tasks.filters.SubtaskFilter
 import org.tasks.preferences.QueryPreferences
 
 internal object TaskListQueryRecursive {
@@ -29,12 +30,16 @@ internal object TaskListQueryRecursive {
         val groupMode = when {
             filter is CaldavFilter && (manualSort || groupPreference == SortHelper.SORT_LIST) ->
                 SortHelper.GROUP_NONE
+            filter is SubtaskFilter && manualSort ->
+                SortHelper.GROUP_NONE
             else -> groupPreference
         }
         val sortMode = when {
-            !manualSort || filter !is CaldavFilter -> preferences.sortMode
-            filter.isGoogleTasks -> SortHelper.SORT_GTASKS
-            else -> SortHelper.SORT_CALDAV
+            !manualSort || (filter !is CaldavFilter && filter !is SubtaskFilter) -> preferences.sortMode
+            filter is CaldavFilter && filter.isGoogleTasks -> SortHelper.SORT_GTASKS
+            filter is SubtaskFilter && filter.isGoogleTasks -> SortHelper.SORT_GTASKS
+            filter is CaldavFilter || filter is SubtaskFilter -> SortHelper.SORT_CALDAV
+            else -> preferences.sortMode
         }
         val subtaskPreference = preferences.subtaskMode
         val subtaskMode = when {

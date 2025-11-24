@@ -45,7 +45,15 @@ class SubtaskControlSet : TaskEditControlFragment() {
         val viewState = viewModel.viewState.collectAsStateWithLifecycle().value
         LaunchedEffect(viewState.task) {
             if (viewState.task.id > 0) {
-                listViewModel.setFilter(SubtaskFilter(viewState.task.id))
+                // Pass calendar info to SubtaskFilter so it can use the same sorting as the parent list
+                val filter = viewState.list
+                listViewModel.setFilter(
+                    SubtaskFilter(
+                        parent = viewState.task.id,
+                        calendarUuid = filter.uuid,
+                        isGoogleTasks = filter.isGoogleTasks
+                    )
+                )
             }
         }
         val originalState = viewModel.originalState.collectAsStateWithLifecycle().value
