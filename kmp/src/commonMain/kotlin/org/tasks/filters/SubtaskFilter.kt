@@ -29,6 +29,8 @@ data class SubtaskFilter(
 
     override fun disableHeaders() = true
     
+    // Manual sort is supported when the subtask belongs to a CalDAV calendar,
+    // allowing it to use the same ordering as the parent task list
     override fun supportsManualSort(): Boolean = calendarUuid != null
 
     override fun areItemsTheSame(other: FilterListItem): Boolean =

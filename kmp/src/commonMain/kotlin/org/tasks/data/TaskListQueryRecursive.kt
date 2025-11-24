@@ -28,8 +28,8 @@ internal object TaskListQueryRecursive {
         val manualSort = preferences.isManualSort
         val groupPreference = preferences.groupMode
         
-        // Determine if this filter supports manual sorting
-        val isManualSortableFilter = (filter is CaldavFilter || filter is SubtaskFilter) && manualSort
+        // Determine if this filter supports manual sorting and it's enabled
+        val isManualSortableFilter = filter.supportsManualSort() && manualSort
         
         val groupMode = when {
             filter is CaldavFilter && (manualSort || groupPreference == SortHelper.SORT_LIST) ->
