@@ -31,8 +31,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.PermanentDrawerSheet
+import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
+import androidx.window.core.layout.WindowWidthSizeClass
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
@@ -175,208 +179,247 @@ fun HomeScreen(
         )
     }
 
-    TouchSlopMultiplier {
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = isListVisible,
-            drawerContent = {
-                ModalDrawerSheet(
-                    drawerState = drawerState,
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    drawerContainerColor = MaterialTheme.colorScheme.surface,
-                ) {
-                    val context = LocalContext.current
-                    val scope = rememberCoroutineScope()
-                    val searchExpanded = remember { mutableStateOf(false) }
-                    LaunchedEffect(drawerState.isClosed) {
-                        if (drawerState.isClosed) {
-                            searchExpanded.value = false
-                        }
-                    }
-                    BackHandler(enabled = searchExpanded.value) {
-                        if (state.menuQuery.isNotEmpty()) {
-                            viewModel.queryMenu("")
-                        } else {
-                            searchExpanded.value = false
-                            scope.launch { drawerState.close() }
-                        }
-                    }
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        TaskListDrawer(
-                            arrangement = if (state.menuQuery.isBlank()) Arrangement.Top else Arrangement.Bottom,
-                            filters = if (state.menuQuery.isNotEmpty()) state.searchItems else state.drawerItems,
-                            onClick = {
-                                when (it) {
-                                    is DrawerItem.Filter -> {
-                                        viewModel.setFilter(it.filter)
-                                        scope.launch {
-                                            drawerState.close()
-                                            keyboard?.hide()
-                                        }
-                                    }
+    val isWidescreen = currentWindowAdaptiveInfo()
+        .windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
 
-                                    is DrawerItem.Header -> {
-                                        viewModel.toggleCollapsed(it.header)
-                                    }
-                                }
-                            },
-                            onAddClick = {
-                                if (it.openTaskApp != null) {
-                                    openTaskAppDialog.value = it.openTaskApp
-                                } else {
-                                    scope.launch {
-                                        drawerState.close()
-                                        when (it.header.addIntentRc) {
-                                            FilterProvider.REQUEST_NEW_FILTER ->
-                                                showNewFilterDialog()
-
-                                            REQUEST_NEW_PLACE ->
-                                                newList.launch(Intent(context, LocationPickerActivity::class.java))
-
-                                            REQUEST_NEW_TAGS ->
-                                                newList.launch(Intent(context, TagSettingsActivity::class.java))
-
-                                            REQUEST_NEW_LIST ->
-                                                when (it.header.subheaderType) {
-                                                    NavigationDrawerSubheader.SubheaderType.TASKS -> {
-                                                        val account = viewModel.getAccount(it.header.id.toLong())
-                                                        if (account != null && viewModel.isTasksGuest()) {
-                                                            guestDialog.value = true
-                                                        } else if (account != null) {
-                                                            newList.launch(
-                                                                Intent(context, account.listSettingsClass())
-                                                                    .putExtra(EXTRA_CALDAV_ACCOUNT, account)
-                                                            )
-                                                        }
-                                                    }
-
-                                                    NavigationDrawerSubheader.SubheaderType.CALDAV ->
-                                                        viewModel
-                                                            .getAccount(it.header.id.toLong())
-                                                            ?.let {
-                                                                newList.launch(
-                                                                    Intent(context, it.listSettingsClass())
-                                                                        .putExtra(EXTRA_CALDAV_ACCOUNT, it)
-                                                                )
-                                                            }
-
-                                                    else -> {}
-                                                }
-
-                                            else -> Timber.e("Unhandled request code: $it")
-                                        }
-                                    }
-                                }
-                            },
-                            onErrorClick = {
-                                context.startActivity(Intent(context, MainPreferences::class.java))
-                            },
-                            query = state.menuQuery,
-                            onQueryChange = { viewModel.queryMenu(it) },
-                            searchExpanded = searchExpanded.value,
-                            onSearchExpandedChange = { searchExpanded.value = it },
-                        )
-
-                        SystemBarScrim(
-                            modifier = Modifier
-                                .windowInsetsTopHeight(WindowInsets.systemBars)
-                                .align(Alignment.TopCenter),
-                            color = MaterialTheme.colorScheme.surface,
-                        )
-                        SystemBarScrim(
-                            modifier = Modifier
-                                .windowInsetsBottomHeight(WindowInsets.systemBars)
-                                .align(Alignment.BottomCenter),
-                            color = MaterialTheme.colorScheme.surface,
-                        )
-                    }
+    @Composable
+    fun DrawerContent(isPermanent: Boolean) {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val searchExpanded = remember { mutableStateOf(false) }
+        if (!isPermanent) {
+            LaunchedEffect(drawerState.isClosed) {
+                if (drawerState.isClosed) {
+                    searchExpanded.value = false
                 }
             }
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                val scope = rememberCoroutineScope()
-                ListDetailPaneScaffold(
-                    directive = navigator.scaffoldDirective,
-                    value = navigator.scaffoldValue,
-                    listPane = {
-                        key (state.filter) {
-                            val fragment = remember { mutableStateOf<TaskListFragment?>(null) }
-                            val keyboardOpen = rememberImeState()
-                            AndroidFragment<TaskListFragment>(
-                                fragmentState = rememberFragmentState(),
-                                arguments = remember(state.filter) {
-                                    Bundle()
-                                        .apply { putParcelable(EXTRA_FILTER, state.filter) }
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .imePadding(),
-                            ) { tlf ->
-                                fragment.value = tlf
-                                tlf.applyInsets(windowInsets.value)
-                                tlf.setNavigationClickListener {
-                                    scope.launch { drawerState.open() }
+        }
+        BackHandler(enabled = searchExpanded.value) {
+            if (state.menuQuery.isNotEmpty()) {
+                viewModel.queryMenu("")
+            } else {
+                searchExpanded.value = false
+                if (!isPermanent) {
+                    scope.launch { drawerState.close() }
+                }
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            TaskListDrawer(
+                arrangement = if (state.menuQuery.isBlank()) Arrangement.Top else Arrangement.Bottom,
+                filters = if (state.menuQuery.isNotEmpty()) state.searchItems else state.drawerItems,
+                onClick = {
+                    when (it) {
+                        is DrawerItem.Filter -> {
+                            viewModel.setFilter(it.filter)
+                            if (!isPermanent) {
+                                scope.launch {
+                                    drawerState.close()
+                                    keyboard?.hide()
                                 }
+                            } else {
+                                keyboard?.hide()
                             }
-                            LaunchedEffect(fragment, windowInsets, keyboardOpen.value) {
-                                fragment.value?.applyInsets(
-                                    if (keyboardOpen.value) {
-                                        PaddingValues(
-                                            top = windowInsets.value.calculateTopPadding(),
-                                        )
-                                    } else {
-                                        windowInsets.value
+                        }
+
+                        is DrawerItem.Header -> {
+                            viewModel.toggleCollapsed(it.header)
+                        }
+                    }
+                },
+                onAddClick = {
+                    if (it.openTaskApp != null) {
+                        openTaskAppDialog.value = it.openTaskApp
+                    } else {
+                        scope.launch {
+                            if (!isPermanent) {
+                                drawerState.close()
+                            }
+                            when (it.header.addIntentRc) {
+                                FilterProvider.REQUEST_NEW_FILTER ->
+                                    showNewFilterDialog()
+
+                                REQUEST_NEW_PLACE ->
+                                    newList.launch(Intent(context, LocationPickerActivity::class.java))
+
+                                REQUEST_NEW_TAGS ->
+                                    newList.launch(Intent(context, TagSettingsActivity::class.java))
+
+                                REQUEST_NEW_LIST ->
+                                    when (it.header.subheaderType) {
+                                        NavigationDrawerSubheader.SubheaderType.TASKS -> {
+                                            val account = viewModel.getAccount(it.header.id.toLong())
+                                            if (account != null && viewModel.isTasksGuest()) {
+                                                guestDialog.value = true
+                                            } else if (account != null) {
+                                                newList.launch(
+                                                    Intent(context, account.listSettingsClass())
+                                                        .putExtra(EXTRA_CALDAV_ACCOUNT, account)
+                                                )
+                                            }
+                                        }
+
+                                        NavigationDrawerSubheader.SubheaderType.CALDAV ->
+                                            viewModel
+                                                .getAccount(it.header.id.toLong())
+                                                ?.let {
+                                                    newList.launch(
+                                                        Intent(context, it.listSettingsClass())
+                                                            .putExtra(EXTRA_CALDAV_ACCOUNT, it)
+                                                    )
+                                                }
+
+                                        else -> {}
                                     }
+
+                                else -> Timber.e("Unhandled request code: $it")
+                            }
+                        }
+                    }
+                },
+                onErrorClick = {
+                    context.startActivity(Intent(context, MainPreferences::class.java))
+                },
+                query = state.menuQuery,
+                onQueryChange = { viewModel.queryMenu(it) },
+                searchExpanded = searchExpanded.value,
+                onSearchExpandedChange = { searchExpanded.value = it },
+            )
+
+            SystemBarScrim(
+                modifier = Modifier
+                    .windowInsetsTopHeight(WindowInsets.systemBars)
+                    .align(Alignment.TopCenter),
+                color = MaterialTheme.colorScheme.surface,
+            )
+            SystemBarScrim(
+                modifier = Modifier
+                    .windowInsetsBottomHeight(WindowInsets.systemBars)
+                    .align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.surface,
+            )
+        }
+    }
+
+    @Composable
+    fun MainContent(showNavIcon: Boolean) {
+        val scope = rememberCoroutineScope()
+        Box(modifier = Modifier.fillMaxSize()) {
+            ListDetailPaneScaffold(
+                directive = navigator.scaffoldDirective,
+                value = navigator.scaffoldValue,
+                listPane = {
+                    key(state.filter) {
+                        val fragment = remember { mutableStateOf<TaskListFragment?>(null) }
+                        val keyboardOpen = rememberImeState()
+                        AndroidFragment<TaskListFragment>(
+                            fragmentState = rememberFragmentState(),
+                            arguments = remember(state.filter) {
+                                Bundle()
+                                    .apply { putParcelable(EXTRA_FILTER, state.filter) }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .imePadding(),
+                        ) { tlf ->
+                            fragment.value = tlf
+                            tlf.applyInsets(windowInsets.value)
+                            tlf.setNavigationClickListener(
+                                if (showNavIcon) {
+                                    { scope.launch { drawerState.open() } }
+                                } else {
+                                    null
+                                }
+                            )
+                        }
+                        LaunchedEffect(fragment, windowInsets, keyboardOpen.value) {
+                            fragment.value?.applyInsets(
+                                if (keyboardOpen.value) {
+                                    PaddingValues(
+                                        top = windowInsets.value.calculateTopPadding(),
+                                    )
+                                } else {
+                                    windowInsets.value
+                                }
+                            )
+                        }
+                    }
+                },
+                detailPane = {
+                    val direction = LocalLayoutDirection.current
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = windowInsets.value.calculateTopPadding(),
+                                start = windowInsets.value.calculateStartPadding(direction),
+                                end = windowInsets.value.calculateEndPadding(direction),
+                                bottom = if (rememberImeState().value)
+                                    WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+                                else
+                                    windowInsets.value.calculateBottomPadding()
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (state.task == null) {
+                            if (isListVisible && isDetailVisible) {
+                                Icon(
+                                    painter = painterResource(org.tasks.kmp.R.drawable.ic_launcher_no_shadow_foreground),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(192.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            key(state.task) {
+                                AndroidFragment<TaskEditFragment>(
+                                    fragmentState = rememberFragmentState(),
+                                    arguments = remember(state.task) {
+                                        Bundle()
+                                            .apply { putParcelable(EXTRA_TASK, state.task) }
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
                                 )
                             }
                         }
-                    },
-                    detailPane = {
-                        val direction = LocalLayoutDirection.current
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    top = windowInsets.value.calculateTopPadding(),
-                                    start = windowInsets.value.calculateStartPadding(direction),
-                                    end = windowInsets.value.calculateEndPadding(direction),
-                                    bottom = if (rememberImeState().value)
-                                        WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-                                    else
-                                        windowInsets.value.calculateBottomPadding()
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (state.task == null) {
-                                if (isListVisible && isDetailVisible) {
-                                    Icon(
-                                        painter = painterResource(org.tasks.kmp.R.drawable.ic_launcher_no_shadow_foreground),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(192.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            } else {
-                                key(state.task) {
-                                    AndroidFragment<TaskEditFragment>(
-                                        fragmentState = rememberFragmentState(),
-                                        arguments = remember(state.task) {
-                                            Bundle()
-                                                .apply { putParcelable(EXTRA_TASK, state.task) }
-                                        },
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
+                    }
+                },
+            )
 
-                SystemBarScrim(
-                    modifier = Modifier
-                        .windowInsetsTopHeight(WindowInsets.systemBars)
-                        .align(Alignment.TopCenter),
-                )
+            SystemBarScrim(
+                modifier = Modifier
+                    .windowInsetsTopHeight(WindowInsets.systemBars)
+                    .align(Alignment.TopCenter),
+            )
+        }
+    }
+
+    if (isWidescreen) {
+        PermanentNavigationDrawer(
+            drawerContent = {
+                PermanentDrawerSheet(windowInsets = WindowInsets(0, 0, 0, 0)) {
+                    DrawerContent(isPermanent = true)
+                }
+            }
+        ) {
+            MainContent(showNavIcon = false)
+        }
+    } else {
+        TouchSlopMultiplier {
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                gesturesEnabled = isListVisible,
+                drawerContent = {
+                    ModalDrawerSheet(
+                        drawerState = drawerState,
+                        windowInsets = WindowInsets(0, 0, 0, 0),
+                        drawerContainerColor = MaterialTheme.colorScheme.surface,
+                    ) {
+                        DrawerContent(isPermanent = false)
+                    }
+                }
+            ) {
+                MainContent(showNavIcon = true)
             }
         }
     }

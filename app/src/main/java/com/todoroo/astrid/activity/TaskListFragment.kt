@@ -213,7 +213,7 @@ class TaskListFragment : Fragment(), OnRefreshListener, Toolbar.OnMenuItemClickL
     private lateinit var search: MenuItem
     private var mode: ActionMode? = null
     lateinit var themeColor: ThemeColor
-    private var onClickMenu: () -> Unit = {}
+    private var onClickMenu: (() -> Unit)? = null
     private lateinit var binding: FragmentTaskListBinding
     private var windowInsets: PaddingValues? = null
     private var hasWritableList = true
@@ -317,8 +317,12 @@ class TaskListFragment : Fragment(), OnRefreshListener, Toolbar.OnMenuItemClickL
         })
     }
 
-    fun setNavigationClickListener(onClick: () -> Unit) {
+    fun setNavigationClickListener(onClick: (() -> Unit)?) {
         onClickMenu = onClick
+        if (this::binding.isInitialized) {
+            binding.bottomAppBar.navigationIcon =
+                if (onClick != null) getDrawable(requireContext(), R.drawable.ic_outline_menu_24px) else null
+        }
     }
 
     @SuppressLint("PrivateResource")
@@ -434,9 +438,10 @@ class TaskListFragment : Fragment(), OnRefreshListener, Toolbar.OnMenuItemClickL
         }
         with (binding.bottomAppBar) {
             setOnMenuItemClickListener(this@TaskListFragment)
+            if (onClickMenu == null) navigationIcon = null
             setNavigationOnClickListener {
                 activity?.hideKeyboard()
-                onClickMenu()
+                onClickMenu?.invoke()
             }
         }
         setupToolbarMenu()
