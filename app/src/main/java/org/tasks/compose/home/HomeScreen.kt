@@ -10,11 +10,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity.RESULT_OK
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
@@ -305,10 +307,18 @@ fun HomeScreen(
     fun MainContent(showNavIcon: Boolean) {
         val scope = rememberCoroutineScope()
         Box(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val halfWidth = maxWidth / 2
             ListDetailPaneScaffold(
                 directive = navigator.scaffoldDirective,
                 value = navigator.scaffoldValue,
                 listPane = {
+                    Box(
+                        modifier = if (isWidescreen)
+                            Modifier.preferredWidth(halfWidth).fillMaxHeight()
+                        else
+                            Modifier.fillMaxSize()
+                    ) {
                     key(state.filter) {
                         val fragment = remember { mutableStateOf<TaskListFragment?>(null) }
                         val keyboardOpen = rememberImeState()
@@ -344,6 +354,7 @@ fun HomeScreen(
                             )
                         }
                     }
+                    } // close Box(preferredWidth)
                 },
                 detailPane = {
                     val direction = LocalLayoutDirection.current
@@ -391,6 +402,7 @@ fun HomeScreen(
                     .windowInsetsTopHeight(WindowInsets.systemBars)
                     .align(Alignment.TopCenter),
             )
+            } // close BoxWithConstraints
         }
     }
 
