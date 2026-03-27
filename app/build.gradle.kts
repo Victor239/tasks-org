@@ -50,7 +50,7 @@ android {
 
     defaultConfig {
         testApplicationId = "org.tasks.test"
-        applicationId = "org.tasks"
+        applicationId = "com.victor.tasks"
         versionCode = libs.versions.versionCode.get().toInt()
         versionName = libs.versions.versionName.get()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
