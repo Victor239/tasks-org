@@ -44,6 +44,7 @@ import org.tasks.filters.FilterProvider
 import org.tasks.tasklist.HeaderFormatter
 import org.tasks.viewmodel.AddAccountViewModel
 import org.tasks.viewmodel.AppViewModel
+import org.tasks.viewmodel.CaldavAccountViewModel
 import org.tasks.viewmodel.DrawerViewModel
 import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TaskListViewModel
@@ -172,6 +173,7 @@ val commonModule = module {
     // ViewModels
     viewModelOf(::AppViewModel)
     viewModelOf(::AddAccountViewModel)
+    viewModelOf(::CaldavAccountViewModel)
     viewModel {
         DrawerViewModel(
             filterProvider = get(),

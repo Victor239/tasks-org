@@ -94,6 +94,7 @@ import org.tasks.compose.SignInProvider
 import org.tasks.compose.SignInProviderDialog
 import org.tasks.compose.WelcomeScreenLayout
 import org.tasks.compose.accounts.AddAccountScreen
+import org.tasks.compose.accounts.CaldavAccountScreen
 import org.tasks.compose.accounts.Platform
 import org.tasks.analytics.AnalyticsEvents
 import org.tasks.analytics.Reporting
@@ -114,6 +115,7 @@ import org.tasks.tasklist.SectionedDataSource
 import org.tasks.tasklist.TasksResults
 import org.tasks.viewmodel.AddAccountViewModel
 import org.tasks.viewmodel.AppViewModel
+import org.tasks.viewmodel.CaldavAccountViewModel
 import org.tasks.viewmodel.DrawerViewModel
 import org.tasks.viewmodel.TaskListViewModel
 
@@ -122,6 +124,9 @@ data object WelcomeDestination : NavKey
 
 @Serializable
 data object AddAccountDestination : NavKey
+
+@Serializable
+data object CaldavAccountDestination : NavKey
 
 @Serializable
 data object TaskListDestination : NavKey
@@ -151,6 +156,7 @@ fun App(
                         polymorphic(NavKey::class) {
                             subclass(WelcomeDestination::class, WelcomeDestination.serializer())
                             subclass(AddAccountDestination::class, AddAccountDestination.serializer())
+                            subclass(CaldavAccountDestination::class, CaldavAccountDestination.serializer())
                             subclass(TaskListDestination::class, TaskListDestination.serializer())
                         }
                     }
@@ -221,6 +227,7 @@ fun App(
                                 )
                                 when (platform) {
                                     Platform.TASKS_ORG -> showProviderPicker = true
+                                    Platform.CALDAV -> backStack.add(CaldavAccountDestination)
                                     else -> addAccountViewModel.signIn(platform)
                                 }
                             },
@@ -279,6 +286,28 @@ fun App(
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                    entry<CaldavAccountDestination> {
+                        val vm = koinViewModel<CaldavAccountViewModel>()
+                        val state by vm.state.collectAsState()
+                        val errorMessage = when (val s = state) {
+                            is CaldavAccountViewModel.State.Error ->
+                                s.resource?.let { org.jetbrains.compose.resources.stringResource(it) }
+                                    ?: s.message ?: "Failed to connect"
+                            else -> null
+                        }
+                        CaldavAccountScreen(
+                            isLoading = state is CaldavAccountViewModel.State.Loading,
+                            error = errorMessage,
+                            onBack = { backStack.removeLastOrNull() },
+                            onSave = { name, url, username, password -> vm.save(name, url, username, password) },
+                            onDismissError = { vm.dismissError() },
+                        )
+                        LaunchedEffect(state) {
+                            if (state is CaldavAccountViewModel.State.Success) {
+                                backStack.removeLastOrNull()
                             }
                         }
                     }
