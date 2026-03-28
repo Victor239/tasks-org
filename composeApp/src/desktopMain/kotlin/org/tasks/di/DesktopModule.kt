@@ -27,6 +27,7 @@ import org.tasks.kmp.createDataStore
 import org.tasks.kmp.dataStoreFileName
 import org.tasks.preferences.TasksPreferences
 import org.tasks.security.DesktopKeyProvider
+import org.tasks.security.JvmCertStore
 import org.tasks.security.KeyStoreEncryption
 import org.tasks.sse.SseClient
 import org.tasks.sse.SseTokenProvider
@@ -51,7 +52,8 @@ actual fun platformModule(): Module = module {
     singleOf(::TasksServerEnvironment)
     single { PlatformConfiguration(supportsCaldav = true) }
     single<Reporting> { PostHogReporting(config.getProperty("posthog.key", "")) }
-    factory<OkHttpClientFactory> { DefaultOkHttpClientFactory() }
+    single { JvmCertStore(File(dataDir(), "trusted_certs")) }
+    factory<OkHttpClientFactory> { DefaultOkHttpClientFactory(get()) }
     factory { DesktopOAuthFlow(serverEnvironment = get()) }
     factoryOf(::DesktopSignInHandler) bind SignInHandler::class
     single {

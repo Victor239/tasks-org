@@ -118,6 +118,12 @@ import org.tasks.viewmodel.AppViewModel
 import org.tasks.viewmodel.CaldavAccountViewModel
 import org.tasks.viewmodel.DrawerViewModel
 import org.tasks.viewmodel.TaskListViewModel
+import org.jetbrains.compose.resources.stringResource
+import tasks.kmp.generated.resources.Res
+import tasks.kmp.generated.resources.cancel
+import tasks.kmp.generated.resources.certificate_not_trusted
+import tasks.kmp.generated.resources.certificate_not_trusted_description
+import tasks.kmp.generated.resources.trust
 
 @Serializable
 data object WelcomeDestination : NavKey
@@ -297,6 +303,59 @@ fun App(
                                 s.resource?.let { org.jetbrains.compose.resources.stringResource(it) }
                                     ?: s.message ?: "Failed to connect"
                             else -> null
+                        }
+                        val certError = state as? CaldavAccountViewModel.State.CertError
+                        if (certError != null) {
+                            BasicAlertDialog(onDismissRequest = { vm.dismissError() }) {
+                                Surface(
+                                    shape = MaterialTheme.shapes.medium,
+                                    color = MaterialTheme.colorScheme.surface,
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(
+                                            text = stringResource(Res.string.certificate_not_trusted),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = stringResource(Res.string.certificate_not_trusted_description),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.padding(top = 8.dp),
+                                        )
+                                        Text(
+                                            text = "Subject: ${certError.subject}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 8.dp),
+                                        )
+                                        Text(
+                                            text = "Issued by: ${certError.issuer}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            text = "Valid until: ${certError.validUntil}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            text = certError.fingerprint,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 4.dp),
+                                        )
+                                        Row(modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) {
+                                            TextButton(onClick = { vm.dismissError() }) {
+                                                Text(stringResource(Res.string.cancel))
+                                            }
+                                            TextButton(onClick = { vm.acceptCert() }) {
+                                                Text(stringResource(Res.string.trust))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         CaldavAccountScreen(
                             isLoading = state is CaldavAccountViewModel.State.Loading,

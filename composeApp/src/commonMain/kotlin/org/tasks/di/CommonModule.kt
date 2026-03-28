@@ -44,6 +44,7 @@ import org.tasks.filters.FilterProvider
 import org.tasks.tasklist.HeaderFormatter
 import org.tasks.viewmodel.AddAccountViewModel
 import org.tasks.viewmodel.AppViewModel
+import org.tasks.security.JvmCertStore
 import org.tasks.viewmodel.CaldavAccountViewModel
 import org.tasks.viewmodel.DrawerViewModel
 import org.tasks.viewmodel.SortSettingsViewModel
@@ -173,7 +174,7 @@ val commonModule = module {
     // ViewModels
     viewModelOf(::AppViewModel)
     viewModelOf(::AddAccountViewModel)
-    viewModelOf(::CaldavAccountViewModel)
+    viewModel { CaldavAccountViewModel(get(), get(), get(), get(), getOrNull<JvmCertStore>()) }
     viewModel {
         DrawerViewModel(
             filterProvider = get(),
